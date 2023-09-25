@@ -1,4 +1,4 @@
-# CodeSmith
+# natural_robot
 A coding interface for users to write robot platform specific code in natural language with the help of Large Language Models
 
 
