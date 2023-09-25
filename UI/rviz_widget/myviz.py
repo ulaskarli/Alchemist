@@ -14,7 +14,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
-from rviz import bindings as rviz
+#from rviz import bindings as rviz
+import rviz
 
 class MyViz( QWidget ):
     def __init__(self,file):

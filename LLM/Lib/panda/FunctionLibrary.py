@@ -1,4 +1,4 @@
-import rospy, moveit_commander,roslaunch, math, random
+import rospy, moveit_commander,roslaunch, math
 import moveit_msgs.msg, geometry_msgs.msg
 import time, actionlib,sys,tf, tf2_ros, copy
 import numpy as np
@@ -26,25 +26,14 @@ class FunctionLib:
 
         group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(group_name)
-
-        gripper_group_name = "panda_hand"
-        self.gripper_group = moveit_commander.MoveGroupCommander(gripper_group_name)
-
         self.display_trajectory_publisher = rospy.Publisher(
             "/move_group/display_planned_path",
             moveit_msgs.msg.DisplayTrajectory,
             queue_size=20,
         )
-        self.gripper_group.go(list(self.gripper_group.get_named_target_values("open").values()),wait=True)
-        self.gripper_group.stop()
-        self.move_group.set_end_effector_link("panda_hand_tcp")
         self.plan=None
-        self.delta=5
-        self.number_of_tubes=3
-        self.home=[0.30702104563440175, -6.085184191568363e-05, 0.487014284874741, -179.99947755944692, -0.042808862968799516, -0.005719683122375379]
         self.object_dict={}
         self.tf_listener = tf.TransformListener()
-        self.setup_the_scene()
     
     def get_current_end_effector_pose(self):
         pose=self.move_group.get_current_pose().pose
@@ -119,56 +108,29 @@ class FunctionLib:
         return math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
     
     def close_gripper(self,name,width):
-        # Simulation code
+        self.graspClient.wait_for_server()
         self.attach_object_to_gripper(name)
-        self.gripper_group.go([(width+0.001)/2.0,(width+0.001)/2.0],wait=True)
-        
-        self.gripper_group.stop()
 
-        # Use the code below for the real robot
+        goal=GraspGoal()
+        goal.width=width
+        goal.epsilon.inner=0.1
+        goal.epsilon.outer=0.1
+        goal.speed=0.1
+        goal.force=20
 
-        # self.graspClient.wait_for_server()
-        # self.attach_object_to_gripper(name)
+        self.graspClient.send_goal(goal)
+        self.graspClient.wait_for_result()
 
-        # goal=GraspGoal()
-        # goal.width=width
-        # goal.epsilon.inner=0.1
-        # goal.epsilon.outer=0.1
-        # goal.speed=0.1
-        # goal.force=20
-
-        # self.graspClient.send_goal(goal)
-        # self.graspClient.wait_for_result()
-
-        # return self.graspClient.get_result()
+        return self.graspClient.get_result()
 
     def open_gripper(self):
-        # Simulation code
-        self.gripper_group.go(list(self.gripper_group.get_named_target_values("open").values()),wait=True)
+        self.gripperMotion.wait_for_server()
+        goal = MoveGoal(width=0.07, speed=1.0)
+        self.gripperMotion.send_goal(goal)
+        self.gripperMotion.wait_for_result()
         self.detach_object_from_gripper()
-        self.gripper_group.stop()
 
-        # Use the code below for the real robot
-
-        # self.gripperMotion.wait_for_server()
-        # goal = MoveGoal(width=0.07, speed=1.0)
-        # self.gripperMotion.send_goal(goal)
-        # self.gripperMotion.wait_for_result()
-        # self.detach_object_from_gripper()
-
-        # return self.gripperMotion.get_result()
-
-    def get_object_location(self,name):
-        location=self.object_dict[name]
-        if len(location)<6:
-            return [location[0],location[1],location[2]+location[3]/2.0]
-        else:
-            return [location[0],location[1],location[2]+location[5]/2.0]
-    
-    def check_end_effector_reached_desired_target(self,target):
-        current_ee_location=self.get_current_end_effector_pose()
-        diff = np.linalg.norm(np.array(target[0:3])-np.array(current_ee_location[0:3]))
-        return diff<0.01
+        return self.gripperMotion.get_result() 
 
     def get_marker_location(self, marker_number):
         while True:
@@ -197,50 +159,28 @@ class FunctionLib:
 
         current_position=self.move_group.get_current_pose().pose.position
 
-        dx = (x-current_position.x)/self.delta
-        dy = (y-current_position.y)/self.delta
-        dz = (z-current_position.z)/self.delta
-        pose=geometry_msgs.msg.Pose()
+        mid_pose=geometry_msgs.msg.Pose()
+        mid_pose.position.x = (current_position.x+x)/2
+        mid_pose.position.y = (current_position.y+y)/2
+        mid_pose.position.z = (current_position.z+z)/2
+        mid_pose.orientation.w = ori[0]
+        mid_pose.orientation.x = ori[1]
+        mid_pose.orientation.y = ori[2]
+        mid_pose.orientation.z = ori[3]
 
-        for step in range(1,self.delta-1):
-            pose=geometry_msgs.msg.Pose()
-            pose.position.x = (current_position.x+dx*step)
-            pose.position.y = (current_position.y+dy*step)
-            pose.position.z = (current_position.z+dz*step)
-            pose.orientation.w = ori[0]
-            pose.orientation.x = ori[1]
-            pose.orientation.y = ori[2]
-            pose.orientation.z = ori[3]
+        pose_goal_top=copy.deepcopy(pose_goal)
+        pose_goal_top.position.z = z+0.1
 
-            waypoints.append(pose)
-
+        waypoints.append(mid_pose)
+        # waypoints.append(pose_goal_top)
         waypoints.append(pose_goal)
+
 
         (plan, fraction) = self.move_group.compute_cartesian_path(
             waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
         )
 
         self.plan=plan
-
-    def go(self, x, y, z, roll, pitch ,yaw):
-
-        ori=self.euler_to_quaternion(roll,pitch,yaw)
-
-        pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.position.x = x
-        pose_goal.position.y = y
-        pose_goal.position.z = z
-
-        pose_goal.orientation.w = ori[0]
-        pose_goal.orientation.x = ori[1]
-        pose_goal.orientation.y = ori[2]
-        pose_goal.orientation.z = ori[3]
-
-        self.move_group.set_pose_target(pose_goal)
-        flag = self.move_group.go(wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
-        return flag
 
     def display_trajectory(self):
         if self.plan==None:
@@ -266,16 +206,16 @@ class FunctionLib:
 
         self.scene.add_cylinder(name, pose, height, radius)
 
-    def add_box_to_workspace(self,name,x,y,z,sx,sy,sz):
-        self.object_dict[name]=[x,y,z,sx,sy,sz]
+    def add_box_to_workspace(self,name,x,y,z,h,l,w):
+        self.object_dict[name]=[x,y,z,h,l,w]
         pose = geometry_msgs.msg.PoseStamped()
         pose.header.frame_id = "world"
         pose.pose.orientation.w = 1.0
         pose.pose.position.x = x
         pose.pose.position.y = y
-        pose.pose.position.z = z
+        pose.pose.position.z = z+h/2
 
-        self.scene.add_box(name, pose, size=(sx,sy,sz))
+        self.scene.add_box(name, pose, size=(h,l,w))
 
     def attach_object_to_gripper(self, name):
         #self.scene.removeCollisionObject(name,wait=True)
@@ -291,38 +231,9 @@ class FunctionLib:
         #p=self.object_dict[name]
         #self.scene.attach_box(eef_link,p[-1],p[-1],p[3],p[0],p[1],p[2],name, touch_links=touch_links)
 
-    def move_to_home_position(self):
-        read_dict = self.move_group.get_named_target_values("ready")
-        home=list(read_dict.values())
-        self.move_group.go(home, wait=True)
-        self.move_group.stop()
 
     def detach_object_from_gripper(self):
         self.scene.remove_attached_object()
-
-    def get_grasp_orientation(self,top=False):
-        if top:
-            return [-180,0.0,0.0]
-        else:
-            return [random.uniform(0.0,360.0),90.0,0.0]
-
-    def setup_the_scene(self):
-        self.move_to_home_position
-        self.add_box_to_workspace("workbench",x=0.5,y=0.0,z=-0.35,sx=0.6,sy=1.2,sz=0.7)
-        close=True
-        for tube in range(self.number_of_tubes):
-            while close:
-                x = random.uniform(0.3,0.65)
-                y = random.uniform(-0.45,0.45)
-                for key in self.object_dict.keys():
-                    if "tube" in key:
-                        txy=np.array(self.object_dict[key][0:2])
-                        xy=np.array([x,y])
-                        if np.linalg.norm(txy-xy)<0.08:
-                            break
-                close=False
-            self.add_cylinder_to_workspace("tube"+str(tube),x=x,y=y,z=0.0,height=0.1,radius=0.02)
-            close=True
 
 
 
