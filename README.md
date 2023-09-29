@@ -2,7 +2,11 @@
 A coding interface for users to write robot platform specific code in natural language with the help of Large Language Models
 
 ## Usage
+Place OpenAI API key in config.json file under every robot platform intended to be used inside Lib folder. Then startup ROS nodes of your selected robot platform (real or simulated), after that run the following bash script to launch the app.
 
+'''
+$ ./main.bash
+'''
 
 ## References
 
