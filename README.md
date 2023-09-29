@@ -8,6 +8,10 @@ Place OpenAI API key in config.json file under every robot platform intended to 
 $ ./main.sh
 ```
 
+first a pop up screen with two drop-downs will appear select your robot platform and abstraction level, then the main application screen will come up. Refer to user manual for UI usage.
+
+https://drive.google.com/file/d/1EKO_2-yTFqT2fMO5ACmnhjlJg2VYo2o3/view?usp=sharing
+
 ## References
 
 RVIZ Python Interface
