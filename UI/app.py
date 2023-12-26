@@ -295,7 +295,7 @@ class MainWindow(QMainWindow):
 
 		self.tree = QTreeView()
 		self.model = QFileSystemModel(self.tree)
-		self.root = self.model.setRootPath('/home/ulasberkkarli/natural_robot/LLM')
+		self.root = self.model.setRootPath('./Alchemist/LLM')
 		self.model.setNameFilters(["gpt_code*"])
 		self.model.setNameFilterDisables(False)  # Set to True to disable the filtering
 		self.model.setFilter(QDir.NoDotAndDotDot |  QDir.Files)
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
 		speech_button = QPushButton(self)
 		speech_button.setStatusTip("speech to text")
 		speech_button.setCheckable(True)
-		speech_button.setIcon(QIcon(QPixmap("/home/ulasberkkarli/natural_robot/UI/icons/mic.png")))
+		speech_button.setIcon(QIcon(QPixmap("./Alchemist/UI/icons/mic.png")))
 		# speech_button.setIconVisibleInMenu(True)
 		speech_button.clicked.connect(self.speech_record)
 
