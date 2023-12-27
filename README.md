@@ -21,6 +21,8 @@ You can add your own robot platform to this system by simply adding a new folder
 ## Vision System
 Current version of this system uses the following vision system but it can be swapped for another vision system by changing the function library implementation.
 
+http://wiki.ros.org/ar_track_alvar
+
 ## References
 
 RVIZ Python Interface
